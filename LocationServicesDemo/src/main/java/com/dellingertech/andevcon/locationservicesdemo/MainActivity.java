@@ -14,11 +14,12 @@ import android.view.Menu;
 import android.view.MenuItem;
 
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GooglePlayServicesClient;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.LocationClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
@@ -33,8 +34,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends Activity
-        implements GooglePlayServicesClient.ConnectionCallbacks,
-        GooglePlayServicesClient.OnConnectionFailedListener,
+        implements GoogleApiClient.ConnectionCallbacks,
+        GoogleApiClient.OnConnectionFailedListener,
         LocationListener,
         LocationClient.OnAddGeofencesResultListener {
 
@@ -47,7 +48,7 @@ public class MainActivity extends Activity
     BitmapDescriptor redIcon;
     BitmapDescriptor greenIcon;
 
-    LocationClient locationClient;
+    GoogleApiClient locationClient;
     LocationRequest locationRequest;
     List<Geofence> geofences;
 
@@ -75,7 +76,11 @@ public class MainActivity extends Activity
                 .title("AnDevcon")
                 .snippet("November 2014")
                 .position(here));
-        locationClient = new LocationClient(this, this, this);
+        locationClient = new GoogleApiClient.Builder(this)
+                .addApi(LocationServices.API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
         locationRequest = new LocationRequest()
                 .setInterval(3*1000)
                 .setFastestInterval(1*1000)
@@ -119,7 +124,7 @@ public class MainActivity extends Activity
     @Override
     protected void onStop() {
         if(locationClient.isConnected()){
-            locationClient.removeLocationUpdates(this);
+            LocationServices.FusedLocationApi.removeLocationUpdates(locationClient, this);
         }
         locationClient.disconnect();
         super.onStop();
@@ -169,14 +174,14 @@ public class MainActivity extends Activity
     @Override
     public void onConnected(Bundle bundle) {
         Log.d(TAG, "Connected");
-        locationClient.requestLocationUpdates(locationRequest, this);
+        LocationServices.FusedLocationApi.requestLocationUpdates(locationClient, locationRequest, this);
         Intent intent = new Intent(TRANSITION_ACTION);
         PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-        locationClient.addGeofences(geofences, pendingIntent, this);
+        LocationServices.GeofencingApi.addGeofences(locationClient, geofences, pendingIntent);
     }
 
     @Override
-    public void onDisconnected() {
+    public void onConnectionSuspended(int i) {
         Log.d(TAG, "disconnected");
     }
 
